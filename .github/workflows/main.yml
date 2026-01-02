@@ -1,0 +1,79 @@
+name: Build Sade APK (No Assets)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Kodları Çek
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Java 17 Kur (Android için)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 3. Python Kur
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 4. GÜVENLİ KLASÖRLEME (Resim Klasörü İPTAL Edildi)
+      # Burada sadece main.py, jsonlar ve requirements taşınıyor.
+      # Assets satırını SİLDİM.
+      - name: Setup Project Directory
+        run: |
+          echo "Sade çalışma alanı hazırlanıyor..."
+          mkdir build_area
+          
+          # Kod ve Veri tabanlarını taşı
+          find . -maxdepth 1 -name "main.py" -exec mv {} build_area/ \;
+          find . -maxdepth 1 -name "*.json" -exec mv {} build_area/ \;
+          
+          # Gereksinim dosyasını taşı
+          if [ -f "requirements.txt" ]; then mv requirements.txt build_area/; fi
+          
+          # NOT: Assets taşıma komutu bilerek silindi.
+          
+          echo "Dosyalar taşındı (Assets hariç)."
+
+      # 5. Gerekli Araçları Yükle
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install cookiecutter packaging flet
+
+      # 6. Flutter Kurulumu
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+
+      # 7. Lisansları Kabul Et
+      - name: Accept Android Licenses
+        run: |
+          yes | flutter doctor --android-licenses
+
+      # 8. APK Derleme
+      - name: Build APK
+        run: |
+          cd build_area
+          # Assets olmadığı için Flet varsayılan ikonlarını kullanacak
+          yes | flet build apk --verbose
+
+      # 9. Sonucu Paketle
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KPSS-SADE-DENEME
+          path: build_area/build/apk/app-release.apk
